@@ -50,15 +50,24 @@ def try_parse_float(val):
 
 def score_wax(wax):
     score = 0
-    if 102 <= wax.get("DropMeltingPoint", -999) <= 115: score += 2
-    if 5 <= wax.get("Penetration25C", -999) <= 9: score += 2
-    if 0.91 <= wax.get("Density23C", -999) <= 0.96: score += 2
-    if wax.get("Viscosity135C", 0) >= 18: score += 2
-    if 100 <= wax.get("CongealingPoint", -999) <= 110: score += 1
-    if wax.get("OilContent", 1) <= 0.5: score += 1
-    if wax.get("AcidValue", 1) <= 0.3: score += 1
+
+    def safe_get(key, default=-999.0):
+        try:
+            return float(wax.get(key, default))
+        except (ValueError, TypeError):
+            return default
+
+    if 102 <= safe_get("DropMeltingPoint") <= 115: score += 2
+    if 5 <= safe_get("Penetration25C") <= 9: score += 2
+    if 0.91 <= safe_get("Density23C") <= 0.96: score += 2
+    if safe_get("Viscosity135C") >= 18: score += 2
+    if 100 <= safe_get("CongealingPoint") <= 110: score += 1
+    if safe_get("OilContent", 1.0) <= 0.5: score += 1
+    if safe_get("AcidValue", 1.0) <= 0.3: score += 1
     if "fischer" in str(wax.get("Type", "")).lower(): score += 1
+
     return score
+
 
 def extract_from_table(file):
     parsed = {}
