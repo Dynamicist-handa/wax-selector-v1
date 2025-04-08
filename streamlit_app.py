@@ -4,7 +4,7 @@ import pandas as pd
 import pdfplumber
 import re
 
-st.set_page_config(page_title="Wax Selector – Table Parser + Manual Input", layout="wide")
+st.set_page_config(page_title="Wax Selector – Table Parser + Manual Entry Fallback", layout="wide")
 st.title("🧪 Wax Selector (PDF Table Parser + Manual Entry Fallback)")
 
 property_aliases = {
@@ -49,14 +49,13 @@ def try_parse_float(val):
         return None
 
 def score_wax(wax):
-    score = 0
-
     def safe_get(key, default=-999.0):
         try:
             return float(wax.get(key, default))
         except (ValueError, TypeError):
             return default
 
+    score = 0
     if 102 <= safe_get("DropMeltingPoint") <= 115: score += 2
     if 5 <= safe_get("Penetration25C") <= 9: score += 2
     if 0.91 <= safe_get("Density23C") <= 0.96: score += 2
@@ -65,9 +64,7 @@ def score_wax(wax):
     if safe_get("OilContent", 1.0) <= 0.5: score += 1
     if safe_get("AcidValue", 1.0) <= 0.3: score += 1
     if "fischer" in str(wax.get("Type", "")).lower(): score += 1
-
     return score
-
 
 def extract_from_table(file):
     parsed = {}
@@ -90,7 +87,6 @@ def parse_pdf_file(file):
     filename = file.name
     parsed = extract_from_table(file)
     if len(parsed) < 2:
-        # Fallback to text mode
         file.seek(0)
         lines = []
         with pdfplumber.open(file) as pdf:
@@ -122,11 +118,11 @@ if uploaded_files:
         wax = parse_pdf_file(file)
         results.append(wax)
 
-# Fallback manual entry form
 st.subheader("📝 Manual Entry (if PDF parsing failed)")
 with st.expander("Add wax manually"):
-    col1, col2, col3 = st.columns(3)
+    col0, col1, col2, col3 = st.columns(4)
     wax_manual = {}
+    wax_manual["SourceFile"] = col0.text_input("Wax Name / ID", value="Manual Entry")
     wax_manual["DropMeltingPoint"] = col1.number_input("Drop Melting Point (°C)", min_value=50.0, max_value=160.0, step=0.1)
     wax_manual["Viscosity135C"] = col2.number_input("Viscosity at 135°C (mPa·s)", min_value=0.0, step=0.1)
     wax_manual["Penetration25C"] = col3.number_input("Penetration at 25°C (dmm)", min_value=0.0, step=0.1)
@@ -136,7 +132,6 @@ with st.expander("Add wax manually"):
 
     if st.button("Add Manual Entry"):
         wax_manual["Score"] = score_wax(wax_manual)
-        wax_manual["SourceFile"] = "Manual Entry"
         results.append(wax_manual)
 
 if results:
