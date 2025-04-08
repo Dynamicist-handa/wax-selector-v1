@@ -4,10 +4,9 @@ import pandas as pd
 import pdfplumber
 import re
 
-st.set_page_config(page_title="Wax Selector (Table Parser)", layout="wide")
-st.title("🧪 Wax Selector – Table-Based PDF Parser (Cloud-Ready)")
+st.set_page_config(page_title="Wax Selector – Table Parser + Manual Input", layout="wide")
+st.title("🧪 Wax Selector (PDF Table Parser + Manual Entry Fallback)")
 
-# Property normalization
 property_aliases = {
     "dropmeltingpoint": "DropMeltingPoint",
     "drop point": "DropMeltingPoint",
@@ -107,13 +106,31 @@ def parse_pdf_file(file):
     return parsed
 
 uploaded_files = st.file_uploader("Upload PDF wax spec sheets", type=["pdf"], accept_multiple_files=True)
+results = []
 
 if uploaded_files:
-    results = []
     for file in uploaded_files:
         wax = parse_pdf_file(file)
         results.append(wax)
 
+# Fallback manual entry form
+st.subheader("📝 Manual Entry (if PDF parsing failed)")
+with st.expander("Add wax manually"):
+    col1, col2, col3 = st.columns(3)
+    wax_manual = {}
+    wax_manual["DropMeltingPoint"] = col1.number_input("Drop Melting Point (°C)", min_value=50.0, max_value=160.0, step=0.1)
+    wax_manual["Viscosity135C"] = col2.number_input("Viscosity at 135°C (mPa·s)", min_value=0.0, step=0.1)
+    wax_manual["Penetration25C"] = col3.number_input("Penetration at 25°C (dmm)", min_value=0.0, step=0.1)
+    wax_manual["Density23C"] = col1.number_input("Density at 23°C (g/cm³)", min_value=0.0, step=0.001)
+    wax_manual["AcidValue"] = col2.number_input("Acid Value (mg KOH/g)", min_value=0.0, step=0.1)
+    wax_manual["OilContent"] = col3.number_input("Oil Content (%)", min_value=0.0, step=0.1)
+
+    if st.button("Add Manual Entry"):
+        wax_manual["Score"] = score_wax(wax_manual)
+        wax_manual["SourceFile"] = "Manual Entry"
+        results.append(wax_manual)
+
+if results:
     df = pd.DataFrame(results)
     important_cols = ["DropMeltingPoint", "AcidValue", "Viscosity135C", "Penetration25C", "Density23C", "Score", "SourceFile"]
     df = df[[col for col in important_cols if col in df.columns]]
