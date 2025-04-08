@@ -2,14 +2,12 @@
 import streamlit as st
 import pandas as pd
 import pdfplumber
-import io
 import re
 
-st.set_page_config(page_title="Wax Selector", layout="wide")
+st.set_page_config(page_title="Wax Selector (Table Parser)", layout="wide")
+st.title("🧪 Wax Selector – Table-Based PDF Parser (Cloud-Ready)")
 
-st.title("🧪 AI-Based Wax Selection Tool")
-st.markdown("Upload **PDF** wax spec sheets to evaluate their suitability for PMB formulations. (Image support is only available in the local version)")
-
+# Property normalization
 property_aliases = {
     "dropmeltingpoint": "DropMeltingPoint",
     "drop point": "DropMeltingPoint",
@@ -17,7 +15,7 @@ property_aliases = {
     "congealing point": "CongealingPoint",
     "solidification point": "CongealingPoint",
     "oil content": "OilContent",
-    "oil content %": "OilContent",
+    "ölgehalt": "OilContent",
     "penetration": "Penetration25C",
     "needle pen.": "Penetration25C",
     "penetration (25 °c)": "Penetration25C",
@@ -25,7 +23,7 @@ property_aliases = {
     "dichte": "Density23C",
     "density (23 °c)": "Density23C",
     "viscosity (140 °c)": "Viscosity135C",
-    "viskositat (140 °c)": "Viscosity135C",
+    "viskosität (140 °c)": "Viscosity135C",
     "viscosity at 135°c": "Viscosity135C",
     "acid value": "AcidValue",
     "saurezahl": "AcidValue",
@@ -63,36 +61,57 @@ def score_wax(wax):
     if "fischer" in str(wax.get("Type", "")).lower(): score += 1
     return score
 
-def parse_pdf_file(file, filename):
-    text_blocks = []
+def extract_from_table(file):
+    parsed = {}
     with pdfplumber.open(file) as pdf:
         for page in pdf.pages:
-            text = page.extract_text()
-            if text:
-                text_blocks.extend(text.split('\n'))
-    data = {}
-    for line in text_blocks:
-        if ':' in line:
-            key, val = map(str.strip, line.split(':', 1))
-        else:
-            parts = re.split(r'\s{2,}', line)
-            if len(parts) < 2:
-                continue
-            key, val = parts[0], parts[1]
-        norm_key = normalize_property(key)
-        value = try_parse_float(val)
-        if norm_key:
-            data[norm_key] = value
-    data["Score"] = score_wax(data)
-    data["SourceFile"] = filename
-    return data
+            tables = page.extract_tables()
+            for table in tables:
+                for row in table:
+                    if row and len(row) >= 2:
+                        key = row[0]
+                        val = row[1]
+                        if key and val:
+                            norm_key = normalize_property(key)
+                            value = try_parse_float(val)
+                            if norm_key:
+                                parsed[norm_key] = value
+    return parsed
 
-uploaded_files = st.file_uploader("Upload PDF spec sheets only", type=["pdf"], accept_multiple_files=True)
+def parse_pdf_file(file):
+    filename = file.name
+    parsed = extract_from_table(file)
+    if len(parsed) < 2:
+        # Fallback to text mode
+        file.seek(0)
+        lines = []
+        with pdfplumber.open(file) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    lines.extend(text.split('\n'))
+        for line in lines:
+            if ':' in line:
+                key, val = map(str.strip, line.split(':', 1))
+            else:
+                parts = re.split(r'\s{2,}', line)
+                if len(parts) < 2:
+                    continue
+                key, val = parts[0], parts[1]
+            norm_key = normalize_property(key)
+            value = try_parse_float(val)
+            if norm_key:
+                parsed[norm_key] = value
+    parsed["Score"] = score_wax(parsed)
+    parsed["SourceFile"] = filename
+    return parsed
+
+uploaded_files = st.file_uploader("Upload PDF wax spec sheets", type=["pdf"], accept_multiple_files=True)
 
 if uploaded_files:
     results = []
     for file in uploaded_files:
-        wax = parse_pdf_file(file, file.name)
+        wax = parse_pdf_file(file)
         results.append(wax)
 
     df = pd.DataFrame(results)
