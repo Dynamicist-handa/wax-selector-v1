@@ -1,16 +1,14 @@
 
 import streamlit as st
 import pandas as pd
-import pytesseract
 import pdfplumber
 import io
 import re
-from PIL import Image
 
 st.set_page_config(page_title="Wax Selector", layout="wide")
 
 st.title("🧪 AI-Based Wax Selection Tool")
-st.markdown("Upload wax spec sheets (PDF or image) to evaluate their suitability for PMB formulations.")
+st.markdown("Upload **PDF** wax spec sheets to evaluate their suitability for PMB formulations. (Image support is only available in the local version)")
 
 property_aliases = {
     "dropmeltingpoint": "DropMeltingPoint",
@@ -65,27 +63,6 @@ def score_wax(wax):
     if "fischer" in str(wax.get("Type", "")).lower(): score += 1
     return score
 
-def parse_image_file(file, filename):
-    img = Image.open(file)
-    raw_text = pytesseract.image_to_string(img)
-    rows = [line.strip() for line in raw_text.split('\n') if line.strip()]
-    data = {}
-    for row in rows:
-        if ':' in row:
-            key, val = map(str.strip, row.split(':', 1))
-        else:
-            parts = re.split(r'\s{2,}', row)
-            if len(parts) < 2:
-                continue
-            key, val = parts[0], parts[1]
-        norm_key = normalize_property(key)
-        value = try_parse_float(val)
-        if norm_key:
-            data[norm_key] = value
-    data["Score"] = score_wax(data)
-    data["SourceFile"] = filename
-    return data
-
 def parse_pdf_file(file, filename):
     text_blocks = []
     with pdfplumber.open(file) as pdf:
@@ -110,16 +87,12 @@ def parse_pdf_file(file, filename):
     data["SourceFile"] = filename
     return data
 
-uploaded_files = st.file_uploader("Upload PDF or Image files", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True)
+uploaded_files = st.file_uploader("Upload PDF spec sheets only", type=["pdf"], accept_multiple_files=True)
 
 if uploaded_files:
     results = []
     for file in uploaded_files:
-        ext = file.name.lower().split(".")[-1]
-        if ext == "pdf":
-            wax = parse_pdf_file(file, file.name)
-        else:
-            wax = parse_image_file(file, file.name)
+        wax = parse_pdf_file(file, file.name)
         results.append(wax)
 
     df = pd.DataFrame(results)
