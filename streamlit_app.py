@@ -4,15 +4,19 @@ import pandas as pd
 import pdfplumber
 import re
 
+st.set_page_config(page_title="Wax Additive Selection: Physics-informed Optimization!", layout="wide")
+st.title("Physics-informed Wax Additive Selection: Optimize Processing!")
+
 st.markdown(
     """
-    <h1 style='text-align: center; color: #1f4f5a; white-space: nowrap;'>
-        Physics-informed Wax Additive Selection: Optimize Processing!
-    </h1>
+    <div style='text-align: center;'>
+        <a href='https://www.ecopals.de/' target='_blank'>
+            <img src='https://raw.githubusercontent.com/Dynamicist-handa/wax-selector-v1/main/ecopals_logo.png' width='120'>
+        </a>
+    </div>
     """,
     unsafe_allow_html=True
 )
-
 #st.image("ecopals_logo.png", width=160)
 
 
