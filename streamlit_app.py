@@ -6,16 +6,6 @@ import re
 
 st.markdown(
     """
-    <h1 style='text-align: center; color: #1f4f5a;'>
-        Physics-informed Wax Additive Selection: Optimize Processing!
-    </h1>
-    """,
-    unsafe_allow_html=True
-)
-
-
-st.markdown(
-    """
     <h1 style='text-align: center; color: #1f4f5a; white-space: nowrap;'>
         Physics-informed Wax Additive Selection: Optimize Processing!
     </h1>
