@@ -7,7 +7,16 @@ import re
 st.set_page_config(page_title="Physics-informed Wax Additive Selection: Optimize Processing!", layout="wide")
 st.title("Physics-informed Wax Additive Selection: Optimize Processing!")
 
-st.markdown("[![EcoPals](https://www.ecopals.de/favicon.ico)](https://www.ecopals.de/)")
+st.markdown(
+    """
+    <div style='text-align: center;'>
+        <a href='https://www.ecopals.de/' target='_blank'>
+            <img src='https://raw.githubusercontent.com/Dynamicist-handa/wax-selector-v1/main/ecopals_logo.png' width='120'>
+        </a>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 #st.image("ecopals_logo.png", width=160)
 
 
