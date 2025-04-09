@@ -5,7 +5,7 @@ import pdfplumber
 import re
 
 st.set_page_config(page_title="Wax Additive Selection: Physics-informed Optimization!", layout="wide")
-st.title("Physics-informed Wax Additive Selection: Optimize Processing!")
+st.title("Wax Additive Selection: Physics-informed Optimization!")
 
 st.markdown(
     """
