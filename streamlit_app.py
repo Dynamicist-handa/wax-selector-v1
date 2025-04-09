@@ -154,7 +154,7 @@ if results:
     st.dataframe(df.sort_values(by="Score", ascending=False), use_container_width=True)
 
 
-st.markdown(
+'''st.markdown(
     """
     <div style='
         text-align: center;
@@ -167,5 +167,5 @@ st.markdown(
     </div>
     """,
     unsafe_allow_html=True
-)
+)'''
 
