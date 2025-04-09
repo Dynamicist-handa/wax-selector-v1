@@ -4,8 +4,15 @@ import pandas as pd
 import pdfplumber
 import re
 
-st.set_page_config(page_title="Physics-informed Wax Additive Selection: Optimize Processing!", layout="wide")
-st.title("Physics-informed Wax Additive Selection: Optimize Processing!")
+st.markdown(
+    """
+    <h1 style='text-align: center; color: #1f4f5a;'>
+        Physics-informed Wax Additive Selection: Optimize Processing!
+    </h1>
+    """,
+    unsafe_allow_html=True
+)
+
 
 st.markdown(
     """
