@@ -8,7 +8,7 @@ st.set_page_config(page_title="Physics-informed Wax Additive Selection: Optimize
 st.title("Physics-informed Wax Additive Selection: Optimize Processing!")
 
 st.markdown("[![EcoPals](https://www.ecopals.de/favicon.ico)](https://www.ecopals.de/)")
-st.image("ecopals_logo.png", width=160)
+#st.image("ecopals_logo.png", width=160)
 
 
 property_aliases = {
@@ -159,3 +159,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
