@@ -145,4 +145,17 @@ if results:
     st.dataframe(df.sort_values(by="Score", ascending=False), use_container_width=True)
 
 
-st.markdown("""<div style='text-align: center; padding-top: 1em; font-size: 0.85em; color: gray;'>Designed by Rishab Handa (Principal R&D Scientist at Ecopals GmbH)</div>""", unsafe_allow_html=True)
+st.markdown(
+    """
+    <div style='
+        text-align: center;
+        font-size: 0.9em;
+        color: #2e8b57;
+        margin-top: 3em;
+        font-weight: 500;
+    '>
+        Designed by Rishab Handa (Principal R&D Scientist at <a href="https://www.ecopals.de" target="_blank" style="color: #2e8b57; text-decoration: none;">EcoPals GmbH</a>)
+    </div>
+    """,
+    unsafe_allow_html=True
+)
