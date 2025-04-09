@@ -4,8 +4,11 @@ import pandas as pd
 import pdfplumber
 import re
 
-st.set_page_config(page_title="Wax Selector – Table Parser + Manual Entry Fallback", layout="wide")
-st.title("🧪 Wax Selector (PDF Table Parser + Manual Entry Fallback)")
+st.set_page_config(page_title="Physics-informed Wax Additive Selection: Optimize Processing!", layout="wide")
+st.title("Physics-informed Wax Additive Selection: Optimize Processing!")
+
+st.markdown("""<a href='https://www.ecopals.de/' target='_blank'><img src='https://raw.githubusercontent.com/Dynamicist-handa/wax-selector-v1/main/ecopals_logo.png' width='160'></a>""", unsafe_allow_html=True)
+
 
 property_aliases = {
     "dropmeltingpoint": "DropMeltingPoint",
@@ -139,3 +142,6 @@ if results:
     important_cols = ["DropMeltingPoint", "AcidValue", "Viscosity135C", "Penetration25C", "Density23C", "Score", "SourceFile"]
     df = df[[col for col in important_cols if col in df.columns]]
     st.dataframe(df.sort_values(by="Score", ascending=False), use_container_width=True)
+
+
+st.markdown("""<div style='text-align: center; padding-top: 1em; font-size: 0.85em; color: gray;'>Designed by Rishab Handa (Principal R&D Scientist at Ecopals GmbH)</div>""", unsafe_allow_html=True)
