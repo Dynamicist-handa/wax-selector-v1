@@ -3,4 +3,3 @@ pytesseract
 pillow
 pdfplumber
 pandas
-plotly
