@@ -1,154 +1,119 @@
 
 import streamlit as st
 import pandas as pd
+import base64
+import io
 import pdfplumber
-import re
 import plotly.express as px
 
-st.set_page_config(page_title="Physics-informed Wax Additive Selection", layout="wide")
+st.set_page_config(page_title="Physics-informed Wax Additive Selection: Optimize Processing!", layout="wide")
+
 st.markdown(
-    """
-    <div style='text-align: center;'>
+    '''
+    <div style='text-align: center; padding-bottom: 10px;'>
         <a href='https://www.ecopals.de/' target='_blank'>
             <img src='https://raw.githubusercontent.com/Dynamicist-handa/wax-selector-v1/main/ecopals_logo.png' width='120'>
         </a>
+        <h1 style='color:#004d5c;'>Physics-informed Wax Additive Selection: Optimize Processing!</h1>
     </div>
-    """,
-    unsafe_allow_html=True
+    ''', unsafe_allow_html=True
 )
 
-st.markdown(
-    """
-    <h1 style='text-align: center; color: #1f4f5a; white-space: nowrap;'>
-        Physics-informed Wax Additive Selection: Optimize Processing!
-    </h1>
-    """,
-    unsafe_allow_html=True
-)
+st.subheader("Upload PDF wax spec sheets")
+uploaded_files = st.file_uploader("Drag and drop files here", type=["pdf"], accept_multiple_files=True, label_visibility="collapsed")
 
-property_aliases = {
-    "dropmeltingpoint": "DropMeltingPoint",
-    "drop point": "DropMeltingPoint",
-    "tropfpunkt": "DropMeltingPoint",
-    "congealing point": "CongealingPoint",
-    "solidification point": "CongealingPoint",
-    "oil content": "OilContent",
-    "ölgehalt": "OilContent",
-    "penetration": "Penetration25C",
-    "needle pen.": "Penetration25C",
-    "density": "Density23C",
-    "dichte": "Density23C",
-    "viscosity (140 °c)": "Viscosity135C",
-    "viskosität (140 °c)": "Viscosity135C",
-    "acid value": "AcidValue",
-    "saurezahl": "AcidValue"
-}
+with st.expander("📝 Manual Entry"):
+    manual_name = st.text_input("Wax Name / ID", "Manual Entry")
+    manual_drop_point = st.number_input("Drop Melting Point (°C)", value=50.0)
+    manual_viscosity = st.number_input("Viscosity at 135°C (mPa·s)", value=0.0)
+    manual_penetration = st.number_input("Penetration at 25°C (dmm)", value=0.0)
+    manual_density = st.number_input("Density at 23°C (g/cm³)", value=0.0)
+    manual_acid = st.number_input("Acid Value (mg KOH/g)", value=0.0)
+    manual_oil = st.number_input("Oil Content (%)", value=0.0)
+
+    if st.button("Add Manual Entry"):
+        st.session_state.setdefault("wax_data", [])
+        st.session_state.wax_data.append({
+            "DropMeltingPoint": manual_drop_point,
+            "Viscosity135C": manual_viscosity,
+            "Penetration25C": manual_penetration,
+            "Density23C": manual_density,
+            "AcidValue": manual_acid,
+            "OilContent": manual_oil,
+            "Score": 0,
+            "SourceFile": manual_name
+        })
 
 def normalize_property(name):
-    key = name.strip().lower()
-    for alias in property_aliases:
-        if alias in key:
-            return property_aliases[alias]
-    return key.replace(" ", "")
+    aliases = {
+        "drop point": "DropMeltingPoint", "tropfpunkt": "DropMeltingPoint",
+        "congealing point": "DropMeltingPoint", "solidification": "DropMeltingPoint",
+        "viscosity": "Viscosity135C",
+        "penetration": "Penetration25C",
+        "density": "Density23C",
+        "acid value": "AcidValue", "saurezahl": "AcidValue",
+        "oil content": "OilContent"
+    }
+    name = name.lower().strip()
+    for key in aliases:
+        if key in name:
+            return aliases[key]
+    return name.replace(" ", "")
 
-def try_parse_float(val):
-    try:
-        cleaned = re.sub(r"[^\d.,\-+]", " ", str(val))
-        cleaned = cleaned.replace(",", ".")
-        matches = [float(x) for x in re.findall(r"[-+]?\d*\.\d+|\d+", cleaned)]
-        return sum(matches[:2]) / len(matches[:2]) if matches else None
-    except:
-        return None
-
-def score_wax(wax):
-    def safe_get(key, default=-999.0):
-        try:
-            return float(wax.get(key, default))
-        except (ValueError, TypeError):
-            return default
-    score = 0
-    if 102 <= safe_get("DropMeltingPoint") <= 115: score += 2
-    if 5 <= safe_get("Penetration25C") <= 9: score += 2
-    if 0.91 <= safe_get("Density23C") <= 0.96: score += 2
-    if safe_get("Viscosity135C") >= 18: score += 2
-    if 100 <= safe_get("CongealingPoint") <= 110: score += 1
-    if safe_get("OilContent", 1.0) <= 0.5: score += 1
-    if safe_get("AcidValue", 1.0) <= 0.3: score += 1
-    return score
-
-def parse_pdf(file):
-    parsed = {}
+def extract_table_from_pdf(file):
     with pdfplumber.open(file) as pdf:
         for page in pdf.pages:
-            tables = page.extract_tables()
-            for table in tables:
-                for row in table:
-                    if row and len(row) >= 2:
-                        key, val = row[0], row[1]
-                        if key and val:
-                            norm_key = normalize_property(key)
-                            value = try_parse_float(val)
-                            if norm_key:
-                                parsed[norm_key] = value
-    parsed["Score"] = score_wax(parsed)
-    parsed["SourceFile"] = file.name
+            table = page.extract_table()
+            if table:
+                df = pd.DataFrame(table[1:], columns=table[0])
+                return df
+    return pd.DataFrame()
+
+def parse_pdf(file, filename):
+    df_raw = extract_table_from_pdf(file)
+    parsed = {"SourceFile": filename}
+    if not df_raw.empty:
+        for _, row in df_raw.iterrows():
+            if len(row) >= 2:
+                key, val = row[0], row[1]
+                key = normalize_property(str(key))
+                try:
+                    val = float(str(val).replace(",", ".").split()[0])
+                except:
+                    continue
+                parsed[key] = val
     return parsed
 
-results = []
-
-uploaded_files = st.file_uploader("Upload PDF wax spec sheets", type=["pdf"], accept_multiple_files=True)
+parsed_data = []
+if "wax_data" in st.session_state:
+    parsed_data.extend(st.session_state.wax_data)
 
 if uploaded_files:
     for file in uploaded_files:
-        wax = parse_pdf(file)
-        results.append(wax)
+        wax = parse_pdf(file, file.name)
+        parsed_data.append(wax)
 
-st.subheader("📝 Manual Entry")
-with st.expander("Add wax manually"):
-    col0, col1, col2, col3 = st.columns(4)
-    wax_manual = {}
-    wax_manual["SourceFile"] = col0.text_input("Wax Name / ID", value="Manual Entry")
-    wax_manual["DropMeltingPoint"] = col1.number_input("Drop Melting Point (°C)", min_value=50.0, max_value=160.0, step=0.1)
-    wax_manual["Viscosity135C"] = col2.number_input("Viscosity at 135°C (mPa·s)", min_value=0.0, step=0.1)
-    wax_manual["Penetration25C"] = col3.number_input("Penetration at 25°C (dmm)", min_value=0.0, step=0.1)
-    wax_manual["Density23C"] = col1.number_input("Density at 23°C (g/cm³)", min_value=0.0, step=0.001)
-    wax_manual["AcidValue"] = col2.number_input("Acid Value (mg KOH/g)", min_value=0.0, step=0.1)
-    wax_manual["OilContent"] = col3.number_input("Oil Content (%)", min_value=0.0, step=0.1)
+if parsed_data:
+    df = pd.DataFrame(parsed_data)
+    display_cols = ["DropMeltingPoint", "Viscosity135C", "Penetration25C", "Density23C", "AcidValue", "OilContent", "Score", "SourceFile"]
+    for col in display_cols:
+        if col not in df.columns:
+            df[col] = None
+    df_show = df[display_cols]
+    st.dataframe(df_show, use_container_width=True)
 
-    if st.button("Add Manual Entry"):
-        wax_manual["Score"] = score_wax(wax_manual)
-        results.append(wax_manual)
+    csv = df_show.to_csv(index=False).encode("utf-8")
+    st.download_button("⬇ Download as CSV", csv, "wax_data.csv", "text/csv")
 
-# Default empty dataframe for robustness
-df_show = pd.DataFrame(columns=["DropMeltingPoint", "AcidValue", "Viscosity135C", "Penetration25C", "Density23C", "Score", "SourceFile"])
-
-if results:
-    df = pd.DataFrame(results)
-    df_show = df[[col for col in df_show.columns if col in df.columns]]
-    st.dataframe(df_show.sort_values(by="Score", ascending=False), use_container_width=True)
-
-    # CSV download
-    csv = df_show.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Download as CSV", data=csv, file_name="wax_scores.csv", mime="text/csv")
-
-# Radar plot logic
-if not df_show.empty and "SourceFile" in df_show.columns:
-    st.subheader("📊 Radar Plot Comparison")
-    selected_waxes = st.multiselect("Select up to 3 waxes to compare:", df_show["SourceFile"].unique(), max_selections=3)
-
-    radar_columns = ["DropMeltingPoint", "Viscosity135C", "Penetration25C", "Density23C", "AcidValue", "OilContent"]
-    if selected_waxes and all(col in df_show.columns for col in radar_columns):
-        df_plot = df_show[df_show["SourceFile"].isin(selected_waxes)]
-        radar_df = df_plot.set_index("SourceFile")[radar_columns]
-        fig = px.line_polar(
-            radar_df.reset_index(),
-            r=radar_df.values.flatten(),
-            theta=radar_df.columns.tolist() * len(radar_df),
-            line_close=True,
-            color=radar_df.reset_index()["SourceFile"].repeat(len(radar_df.columns)).values
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    elif selected_waxes:
-        st.warning("⚠️ Radar plot not available: some required properties are missing.")
-else:
-    st.info("Upload at least one wax or enter values manually to enable radar plot.")
+    st.markdown("### 📊 Radar Plot Comparison")
+    selected = st.multiselect("Select up to 3 waxes to compare:", df_show["SourceFile"].unique(), max_selections=3)
+    if selected:
+        radar_df = df_show[df_show["SourceFile"].isin(selected)]
+        radar_df = radar_df.set_index("SourceFile")
+        radar_df = radar_df[["DropMeltingPoint", "Viscosity135C", "Penetration25C", "Density23C", "AcidValue", "OilContent"]]
+        if not radar_df.isnull().values.any():
+            fig = px.line_polar(radar_df.reset_index(), r=radar_df.values.flatten(), theta=radar_df.columns,
+                                line_close=True, color=radar_df.reset_index()["SourceFile"])
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("⚠️ Radar plot not available: some required properties are missing.")
